@@ -18,6 +18,7 @@ create table if not exists public.validations (
   user_id uuid not null references public.users (id) on delete cascade,
   idea_text text not null,
   industry text,
+  target_customer text,
   stage text not null default 'pre-idea' check (stage in ('pre-idea', 'mvp', 'launched')),
   signal_score integer check (signal_score between 0 and 100),
   verdict text check (verdict in ('BUILD', 'PIVOT', 'PASS')),

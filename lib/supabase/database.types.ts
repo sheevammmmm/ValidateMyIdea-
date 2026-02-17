@@ -134,6 +134,7 @@ export type Database = {
           signal_score: number | null;
           stage: "pre-idea" | "mvp" | "launched";
           status: "processing" | "completed" | "failed";
+          target_customer: string | null;
           updated_at: string;
           user_id: string;
           verdict: "BUILD" | "PIVOT" | "PASS" | null;
@@ -148,6 +149,7 @@ export type Database = {
           signal_score?: number | null;
           stage?: "pre-idea" | "mvp" | "launched";
           status?: "processing" | "completed" | "failed";
+          target_customer?: string | null;
           updated_at?: string;
           user_id: string;
           verdict?: "BUILD" | "PIVOT" | "PASS" | null;
@@ -162,6 +164,7 @@ export type Database = {
           signal_score?: number | null;
           stage?: "pre-idea" | "mvp" | "launched";
           status?: "processing" | "completed" | "failed";
+          target_customer?: string | null;
           updated_at?: string;
           user_id?: string;
           verdict?: "BUILD" | "PIVOT" | "PASS" | null;
