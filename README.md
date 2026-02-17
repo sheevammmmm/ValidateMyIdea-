@@ -1,52 +1,64 @@
-# Validate My Idea SaaS Starter
+# Validate My Idea
 
-A production-oriented starter for building an idea-validation SaaS with:
+Next.js 14 starter for validating startup ideas with Supabase auth/data and API-driven research workflows.
 
-- Next.js (App Router) + TypeScript
-- Tailwind CSS
-- Prisma ORM (PostgreSQL)
-- Starter API routes and product scaffolding
+## Stack
 
-## 1) Prerequisites
+- Next.js 14 (App Router + TypeScript)
+- Tailwind CSS + shadcn/ui style components
+- Supabase (PostgreSQL + Auth)
+- Edge API routes for validation workflows
 
-- Node.js 20+
-- npm 10+
-- PostgreSQL database
+## Project Structure
 
-## 2) Setup
+```text
+/app
+  /api
+    /health/route.ts
+    /validate/route.ts
+  /dashboard/page.tsx
+  /validate/page.tsx
+  /layout.tsx
+  /page.tsx
+/components
+  /landing
+  /ui
+/lib
+  /supabase
+    client.ts
+    server.ts
+  utils.ts
+```
+
+## Local Setup
+
+1. Install dependencies:
 
 ```bash
 npm install
-cp .env.example .env
 ```
 
-Update `.env` with your database URL.
-
-## 3) Database
+2. Copy env template:
 
 ```bash
-npx prisma migrate dev --name init
-npx prisma generate
+cp .env.example .env.local
 ```
 
-## 4) Run locally
+3. Run dev server:
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+## Required Environment Variables
 
-## 5) Included pages
+See `.env.example` for the full list.
+At minimum for Supabase:
 
-- `/` Marketing page
-- `/dashboard` Product dashboard scaffold
-- `/api/health` Health endpoint
-- `/api/waitlist` Waitlist API endpoint
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## 6) Suggested next milestones
+## API Endpoints
 
-1. Add authentication (Clerk, Auth.js, or Supabase Auth).
-2. Build idea submission and experiment tracking CRUD.
-3. Integrate payments (Stripe) and usage limits.
-4. Add onboarding + analytics funnel.
+- `GET /api/health`
+- `POST /api/validate`

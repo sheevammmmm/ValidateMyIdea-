@@ -7,3 +7,15 @@ a central dashboard where user can put their business idea and ai agents go and 
 ### Core Problems
 
 most foudner/builders fails at their business (specifically saas or app) because they dont have the right idea or they dont validate their idea good enough to figure out whether people actuyally want it or not, and the tool we're building right now solves it by giving them full reports on where the idea is in demand or not, and whether people need it or not.
+
+## Tech Stack
+
+- Frontend: Next.js 14 (App Router) + Tailwind CSS + shadcn/ui
+- Backend: Next.js API Routes + Vercel Edge Functions
+- Database: Supabase (PostgreSQL)
+- Auth: Supabase Auth
+- AI: Claude 3.5 Sonnet (Anthropic) for analysis
+- Payments: Stripe
+- APIs: SerpAPI, HN Algolia, Product Hunt API, Twitter API, Google Trends
+- Hosting: Vercel
+- Analytics: PostHog
