@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { runValidationEngine } from "@/lib/validation/engine";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 const validateIdeaSchema = z.object({
-  idea: z.string().min(12, "Idea must be at least 12 characters").max(500),
-  targetAudience: z.string().max(200).optional()
+  idea: z.string().trim().min(1, "Idea is required"),
+  industry: z.string().max(120).optional(),
+  targetAudience: z.string().max(200).optional(),
+  stage: z.enum(["pre-idea", "mvp", "launched"]).default("pre-idea")
 });
 
 export async function POST(request: Request) {
@@ -13,28 +16,37 @@ export async function POST(request: Request) {
     const body = await request.json();
     const payload = validateIdeaSchema.parse(body);
 
-    const response = {
-      success: true,
-      analysis: {
-        verdict: "Promising, but needs proof from customer interviews",
-        confidence: 0.68,
-        summary:
-          "Early signal quality looks positive for a narrow niche. Validate willingness to pay with 10 interviews and one landing-page smoke test before building core product workflows.",
-        nextSteps: [
-          "Run 10 founder/user interviews focused on existing alternatives and urgency.",
-          "Launch one focused landing page and measure conversion-to-waitlist.",
-          "Compare competitor pricing and positioning across Product Hunt and search results."
-        ],
-        integrationsConfigured: {
-          anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
-          supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-          serpApi: Boolean(process.env.SERPAPI_API_KEY)
-        }
-      },
-      input: payload
-    };
+    const engineResult = await runValidationEngine({
+      ideaText: payload.idea,
+      industry: payload.industry,
+      targetCustomer: payload.targetAudience,
+      stage: payload.stage
+    });
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        analysis: {
+          verdict: engineResult.verdict,
+          confidence: engineResult.confidence / 100,
+          signalScore: engineResult.signalScore,
+          founderFitScore: engineResult.founderFitScore,
+          summary: engineResult.summary,
+          nextSteps: engineResult.nextSteps,
+          coverage: engineResult.coverage
+        },
+        sources: engineResult.signals.map((source) => ({
+          source: source.source,
+          status: source.status,
+          demandScore: source.demandScore,
+          mentions: source.mentions,
+          highlights: source.highlights,
+          error: source.error
+        })),
+        input: payload
+      },
+      { status: 200 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -50,7 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Unexpected error while validating idea"
+        error: error instanceof Error ? error.message : "Unexpected error while validating idea"
       },
       { status: 500 }
     );

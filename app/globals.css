@@ -34,3 +34,128 @@
       linear-gradient(to bottom, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.98));
   }
 }
+
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes lp-meter {
+  from {
+    transform: scaleX(0);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .landing-revamp {
+    --lp-bg: #f4f8f8;
+    --lp-ink: #0f172a;
+    --lp-muted: #405064;
+    --lp-surface: #ffffff;
+    --lp-surface-soft: #edf4f4;
+    --lp-border: #d7e2e2;
+    --lp-border-strong: #b8cbcb;
+    --lp-accent: #0ea5a4;
+    --lp-accent-strong: #0b8a89;
+  }
+
+  .lp-grid-bg {
+    background:
+      radial-gradient(circle at 8% 10%, rgba(14, 165, 164, 0.22), transparent 32%),
+      radial-gradient(circle at 90% 5%, rgba(245, 158, 11, 0.16), transparent 26%),
+      linear-gradient(rgba(111, 145, 145, 0.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(111, 145, 145, 0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(244, 248, 248, 1));
+    background-size:
+      auto,
+      auto,
+      48px 48px,
+      48px 48px,
+      auto;
+  }
+
+  .lp-blob {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(56px);
+    opacity: 0.45;
+  }
+
+  .lp-blob-left {
+    left: -8rem;
+    top: 6rem;
+    height: 14rem;
+    width: 14rem;
+    background: linear-gradient(160deg, rgba(14, 165, 164, 0.45), rgba(14, 165, 164, 0.05));
+  }
+
+  .lp-blob-right {
+    right: -7rem;
+    top: 7rem;
+    height: 13rem;
+    width: 13rem;
+    background: linear-gradient(160deg, rgba(245, 158, 11, 0.4), rgba(245, 158, 11, 0.05));
+  }
+
+  .lp-rise {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: lp-rise 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .lp-rise-delay-1 {
+    animation-delay: 0.1s;
+  }
+
+  .lp-rise-delay-2 {
+    animation-delay: 0.2s;
+  }
+
+  .lp-rise-delay-3 {
+    animation-delay: 0.3s;
+  }
+
+  .lp-float {
+    animation: lp-float 8s ease-in-out infinite;
+  }
+
+  .lp-meter {
+    transform-origin: left;
+    animation: lp-meter 0.9s ease-out forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-rise,
+  .lp-float,
+  .lp-meter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

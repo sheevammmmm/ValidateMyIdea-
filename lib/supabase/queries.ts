@@ -1,7 +1,7 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TableInsert, TableRow, TableUpdate } from "@/lib/supabase/database.types";
 
-export type DbClient = SupabaseClient<Database>;
+export type DbClient = SupabaseClient<Database, any, any>;
 
 type QueryResult<T> = {
   data: T | null;

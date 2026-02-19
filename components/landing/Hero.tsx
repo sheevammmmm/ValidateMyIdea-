@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,32 @@ const signals = [
 ];
 
 export function Hero() {
+  const prefersReducedMotion = useReducedMotion();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const updateLayout = () => setIsDesktop(mediaQuery.matches);
+
+    updateLayout();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateLayout);
+      return () => mediaQuery.removeEventListener("change", updateLayout);
+    }
+
+    mediaQuery.addListener(updateLayout);
+    return () => mediaQuery.removeListener(updateLayout);
+  }, []);
+
+  const shouldLoop = isDesktop && !prefersReducedMotion;
+
   return (
     <section className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
       <div>
-        <Badge className="mb-4 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">ValidateMyIdea.com</Badge>
+        <Badge className="mb-4 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">ValidateMyIdea.app</Badge>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-emerald-600">
-          From Brainstorm to $10K MRR Roadmap in 5 Minutes
+          From Brainstorm to Data-Backed Verdict in 90 Seconds
         </p>
 
         <h1 className="text-balance text-4xl font-extrabold leading-tight text-slate-950 md:text-5xl">
@@ -37,7 +58,21 @@ export function Hero() {
               Validate My Idea (Free) <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
-          <p className="text-sm text-slate-500">No credit card needed. 3 free validations per month.</p>
+          <Button asChild size="lg" variant="outline" className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
+            <Link href="/sample-report">See Sample Report</Link>
+          </Button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+            Real Reddit/HN/PH data
+          </Badge>
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+            No credit card
+          </Badge>
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+            Report in &lt;2 min
+          </Badge>
         </div>
       </div>
 
@@ -63,8 +98,8 @@ export function Hero() {
               <motion.p
                 className="mt-1 text-3xl font-extrabold text-slate-900"
                 initial={{ opacity: 0.3 }}
-                animate={{ opacity: [0.6, 1, 0.8, 1] }}
-                transition={{ duration: 2.8, repeat: Infinity }}
+                animate={shouldLoop ? { opacity: [0.75, 1, 0.85, 1] } : { opacity: 1 }}
+                transition={shouldLoop ? { duration: 4.2, repeat: Infinity } : { duration: 0.2 }}
               >
                 78 / 100
               </motion.p>
@@ -81,8 +116,22 @@ export function Hero() {
                     <motion.div
                       className={`h-2.5 rounded-full ${signal.tone}`}
                       initial={{ width: 0 }}
-                      animate={{ width: [`${Math.max(signal.value - 10, 20)}%`, `${signal.value}%`, `${Math.max(signal.value - 5, 20)}%`] }}
-                      transition={{ duration: 2.4 + index * 0.2, repeat: Infinity, repeatType: "reverse" }}
+                      animate={
+                        shouldLoop
+                          ? {
+                              width: [
+                                `${Math.max(signal.value - 8, 20)}%`,
+                                `${signal.value}%`,
+                                `${Math.max(signal.value - 4, 20)}%`
+                              ]
+                            }
+                          : { width: `${signal.value}%` }
+                      }
+                      transition={
+                        shouldLoop
+                          ? { duration: 4 + index * 0.25, repeat: Infinity, repeatType: "reverse" }
+                          : { duration: 0.45, ease: "easeOut" }
+                      }
                     />
                   </div>
                 </div>

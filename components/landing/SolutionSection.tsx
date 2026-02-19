@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -16,6 +17,26 @@ const orbitPoints = sources.map((source, index) => {
 });
 
 export function SolutionSection() {
+  const prefersReducedMotion = useReducedMotion();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const updateLayout = () => setIsDesktop(mediaQuery.matches);
+
+    updateLayout();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateLayout);
+      return () => mediaQuery.removeEventListener("change", updateLayout);
+    }
+
+    mediaQuery.addListener(updateLayout);
+    return () => mediaQuery.removeListener(updateLayout);
+  }, []);
+
+  const shouldLoop = isDesktop && !prefersReducedMotion;
+
   return (
     <section id="solution" className="space-y-6">
       <div className="max-w-3xl">
@@ -37,8 +58,8 @@ export function SolutionSection() {
         <motion.div
           className="absolute inset-0"
           initial={{ opacity: 0.35 }}
-          animate={{ opacity: [0.2, 0.45, 0.2] }}
-          transition={{ duration: 3.8, repeat: Infinity }}
+          animate={shouldLoop ? { opacity: [0.2, 0.42, 0.2] } : { opacity: 0.28 }}
+          transition={shouldLoop ? { duration: 4.2, repeat: Infinity } : { duration: 0.2 }}
           style={{
             background:
               "radial-gradient(circle at 20% 20%, rgba(99,102,241,0.2), transparent 38%), radial-gradient(circle at 80% 80%, rgba(16,185,129,0.2), transparent 32%)"
@@ -48,8 +69,22 @@ export function SolutionSection() {
         <div className="relative h-[22rem]">
           <motion.div
             className="absolute left-1/2 top-1/2 z-20 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-indigo-200 bg-white/95 p-4 text-center shadow-lg"
-            animate={{ scale: [1, 1.06, 1], boxShadow: ["0 0 0 0 rgba(99,102,241,0.16)", "0 0 0 20px rgba(99,102,241,0)", "0 0 0 0 rgba(99,102,241,0)"] }}
-            transition={{ duration: 3, repeat: Infinity }}
+            animate={
+              shouldLoop
+                ? {
+                    scale: [1, 1.05, 1],
+                    boxShadow: [
+                      "0 0 0 0 rgba(99,102,241,0.14)",
+                      "0 0 0 16px rgba(99,102,241,0)",
+                      "0 0 0 0 rgba(99,102,241,0)"
+                    ]
+                  }
+                : {
+                    scale: 1,
+                    boxShadow: "0 10px 24px rgba(99,102,241,0.12)"
+                  }
+            }
+            transition={shouldLoop ? { duration: 4, repeat: Infinity } : { duration: 0.2 }}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Signal Fusion</p>
             <p className="mt-2 text-2xl font-bold text-[#6366f1]">78</p>
@@ -60,12 +95,21 @@ export function SolutionSection() {
             <motion.div
               key={point.source}
               className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-              animate={{
-                x: [point.x * 0.88, point.x, point.x * 0.92],
-                y: [point.y * 0.88, point.y, point.y * 0.92],
-                opacity: [0.75, 1, 0.75]
-              }}
-              transition={{ duration: 2.2 + index * 0.15, repeat: Infinity }}
+              initial={{ x: point.x * 0.88, y: point.y * 0.88, opacity: 0 }}
+              animate={
+                shouldLoop
+                  ? {
+                      x: [point.x * 0.9, point.x, point.x * 0.94],
+                      y: [point.y * 0.9, point.y, point.y * 0.94],
+                      opacity: [0.78, 1, 0.78]
+                    }
+                  : { x: point.x, y: point.y, opacity: 1 }
+              }
+              transition={
+                shouldLoop
+                  ? { duration: 3 + index * 0.15, repeat: Infinity }
+                  : { duration: 0.35, delay: index * 0.03, ease: "easeOut" }
+              }
             >
               <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">{point.source}</div>
             </motion.div>
