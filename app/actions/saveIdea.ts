@@ -81,7 +81,7 @@ export async function saveIdeaAction(rawInput: unknown): Promise<SaveIdeaActionR
         ok: true,
         message: input.mode === "continue" ? "Draft saved. Continuing to founder fit quiz." : "Draft auto-saved.",
         validationId: data.id,
-        savedAt: data.updated_at
+        savedAt: data.updated_at ?? undefined
       };
     }
 

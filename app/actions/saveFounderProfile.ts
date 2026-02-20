@@ -66,7 +66,7 @@ function toValidationContext(validationRow: {
   id: string;
   industry: string | null;
   idea_text: string;
-  stage: "pre-idea" | "mvp" | "launched";
+  stage: "pre-idea" | "mvp" | "launched" | null;
 }): Validation {
   return {
     id: validationRow.id,

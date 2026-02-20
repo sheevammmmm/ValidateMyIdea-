@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/types/signals";
 
 const SERPAPI_ENDPOINT = "https://serpapi.com/search";
+const REDDIT_NATIVE_ENDPOINT = "https://www.reddit.com/search.json";
 const REDDIT_CACHE_TTL_SECONDS = 60 * 60;
 const REDDIT_MAX_RESULTS = 20;
 const REDDIT_MIN_RELEVANCE = 0.2;
@@ -46,6 +47,16 @@ interface SerpApiOrganicResult {
   link: string;
   snippet: string;
   position: number;
+}
+
+interface RedditNativePost {
+  id: string;
+  title: string;
+  selftext: string;
+  subreddit: string;
+  permalink: string;
+  score: number;
+  createdUtc: number | null;
 }
 
 function normalizeWhitespace(value: string): string {
@@ -176,6 +187,82 @@ function dedupeStrings(values: string[]): string[] {
   return deduped;
 }
 
+function buildResultFromPosts(posts: Post[]): RedditSignalResult {
+  const painPoints = dedupeStrings(
+    posts
+      .map((post) => post.quote)
+      .filter((quote) => includesPainKeyword(quote))
+      .slice(0, 20)
+  );
+
+  const competitors = dedupeStrings(
+    posts
+      .flatMap((post) => extractCompetitorMentions(`${post.title} ${post.quote}`))
+      .filter((name) => name.length > 1)
+      .slice(0, 20)
+  );
+
+  return {
+    posts,
+    painPoints,
+    competitors
+  };
+}
+
+function mapSerpResultsToPosts(results: SerpApiOrganicResult[], query: string): Post[] {
+  return results
+    .map((result, index) => {
+      const relevanceScore = computeRelevanceScore(query, result.title, result.snippet, result.position);
+
+      return {
+        id: `reddit-${index + 1}-${result.position}`,
+        title: result.title,
+        url: result.link,
+        subreddit: extractSubredditFromUrl(result.link),
+        quote: extractQuote(result.snippet, result.title),
+        upvotes: extractUpvotes(result.snippet),
+        relevanceScore,
+        createdAt: undefined
+      };
+    })
+    .filter((post) => post.relevanceScore >= REDDIT_MIN_RELEVANCE)
+    .sort((left, right) => {
+      if (right.relevanceScore !== left.relevanceScore) {
+        return right.relevanceScore - left.relevanceScore;
+      }
+
+      return right.upvotes - left.upvotes;
+    });
+}
+
+function mapNativePostsToSignalPosts(items: RedditNativePost[], query: string): Post[] {
+  return items
+    .map((item, index) => {
+      const snippet = normalizeWhitespace(item.selftext || "");
+      const position = index + 1;
+      const relevanceScore = computeRelevanceScore(query, item.title, snippet, position);
+
+      return {
+        id: item.id || `reddit-native-${position}`,
+        title: item.title || "Untitled Reddit post",
+        url: item.permalink.startsWith("http") ? item.permalink : `https://www.reddit.com${item.permalink}`,
+        subreddit: item.subreddit || "unknown",
+        quote: extractQuote(snippet, item.title),
+        upvotes: Math.max(0, item.score),
+        relevanceScore,
+        createdAt: item.createdUtc ? new Date(item.createdUtc * 1000).toISOString() : undefined
+      };
+    })
+    .filter((post) => post.relevanceScore >= REDDIT_MIN_RELEVANCE)
+    .sort((left, right) => {
+      if (right.relevanceScore !== left.relevanceScore) {
+        return right.relevanceScore - left.relevanceScore;
+      }
+
+      return right.upvotes - left.upvotes;
+    });
+}
+
 function parseSerpOrganicResults(payload: unknown): SerpApiOrganicResult[] {
   if (!isRecord(payload) || !Array.isArray(payload.organic_results)) {
     return [];
@@ -220,6 +307,55 @@ function buildSerpQuery(query: string, subreddits: string[]): string {
   return `${normalizeWhitespace(query)} ${focusTerms} ${subredditFilter}`;
 }
 
+function buildNativeRedditQuery(query: string, subreddits: string[]): string {
+  const cleanedSubreddits = subreddits.map(normalizeSubreddit).filter((value) => value.length > 0);
+
+  if (cleanedSubreddits.length === 0) {
+    return `${normalizeWhitespace(query)} problem OR pain OR frustrating`;
+  }
+
+  const subredditClause = cleanedSubreddits.map((subreddit) => `subreddit:${subreddit}`).join(" OR ");
+  return `${normalizeWhitespace(query)} (${subredditClause}) (problem OR pain OR frustrating OR expensive OR alternative)`;
+}
+
+function parseNativePosts(payload: unknown): RedditNativePost[] {
+  if (!isRecord(payload) || !isRecord(payload.data) || !Array.isArray(payload.data.children)) {
+    return [];
+  }
+
+  const posts: RedditNativePost[] = [];
+
+  for (const child of payload.data.children) {
+    if (!isRecord(child) || !isRecord(child.data)) {
+      continue;
+    }
+
+    const id = typeof child.data.id === "string" ? child.data.id : "";
+    const title = typeof child.data.title === "string" ? normalizeWhitespace(child.data.title) : "";
+    const selftext = typeof child.data.selftext === "string" ? normalizeWhitespace(child.data.selftext) : "";
+    const subreddit = typeof child.data.subreddit === "string" ? normalizeWhitespace(child.data.subreddit) : "unknown";
+    const permalink = typeof child.data.permalink === "string" ? normalizeWhitespace(child.data.permalink) : "";
+    const score = typeof child.data.score === "number" ? child.data.score : 0;
+    const createdUtc = typeof child.data.created_utc === "number" ? child.data.created_utc : null;
+
+    if (!title || !permalink) {
+      continue;
+    }
+
+    posts.push({
+      id,
+      title,
+      selftext,
+      subreddit,
+      permalink,
+      score,
+      createdUtc
+    });
+  }
+
+  return posts;
+}
+
 async function callSerpApi(searchQuery: string, apiKey: string): Promise<SerpApiOrganicResult[]> {
   const url = new URL(SERPAPI_ENDPOINT);
   url.searchParams.set("engine", "google");
@@ -253,7 +389,10 @@ async function callSerpApi(searchQuery: string, apiKey: string): Promise<SerpApi
     const payload = (await response.json()) as unknown;
 
     if (isRecord(payload) && typeof payload.error === "string" && payload.error.length > 0) {
-      throw new SourceApiError("reddit", "UPSTREAM_ERROR", payload.error, {
+      const message = normalizeWhitespace(payload.error);
+      const isAuthError = /invalid\s+api\s+key|unauthoriz|forbidden|token/i.test(message);
+
+      throw new SourceApiError("reddit", isAuthError ? "AUTH_ERROR" : "UPSTREAM_ERROR", message, {
         retryable: false,
         details: { searchQuery }
       });
@@ -283,6 +422,106 @@ async function callSerpApi(searchQuery: string, apiKey: string): Promise<SerpApi
   }
 }
 
+async function callNativeReddit(query: string, subreddits: string[]): Promise<RedditNativePost[]> {
+  const url = new URL(REDDIT_NATIVE_ENDPOINT);
+  url.searchParams.set("q", buildNativeRedditQuery(query, subreddits));
+  url.searchParams.set("sort", "relevance");
+  url.searchParams.set("limit", String(REDDIT_MAX_RESULTS));
+  url.searchParams.set("type", "link");
+  url.searchParams.set("t", "year");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ValidateMyIdeaBot/1.0"
+      },
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new SourceApiError("reddit", "UPSTREAM_ERROR", `Reddit search returned status ${response.status}`, {
+        status: response.status,
+        retryable: response.status === 429 || response.status >= 500,
+        details: { query }
+      });
+    }
+
+    const payload = (await response.json()) as unknown;
+    return parseNativePosts(payload);
+  } catch (error) {
+    if (error instanceof SourceApiError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new SourceApiError("reddit", "TIMEOUT", "Reddit native search timed out", {
+        retryable: true,
+        cause: error,
+        details: { query }
+      });
+    }
+
+    throw new SourceApiError("reddit", "NETWORK_ERROR", "Failed to call Reddit native search", {
+      retryable: true,
+      cause: error,
+      details: { query }
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function shouldFallbackToNative(error: SourceApiError): boolean {
+  return (
+    error.code === "CONFIG_ERROR" ||
+    error.code === "AUTH_ERROR" ||
+    error.code === "NETWORK_ERROR" ||
+    error.code === "TIMEOUT" ||
+    error.code === "UPSTREAM_ERROR"
+  );
+}
+
+async function fetchPostsFromSerpApi(query: string, subreddits: string[], apiKey: string): Promise<Post[]> {
+  const searchQuery = buildSerpQuery(query, subreddits);
+  const organicResults = await withRetries(
+    async () => {
+      return callSerpApi(searchQuery, apiKey);
+    },
+    {
+      source: "reddit",
+      operation: "Reddit search (SerpAPI)",
+      retries: 3,
+      baseDelayMs: 350,
+      maxDelayMs: 2_000
+    }
+  );
+
+  return mapSerpResultsToPosts(organicResults, query);
+}
+
+async function fetchPostsFromNativeReddit(query: string, subreddits: string[]): Promise<Post[]> {
+  const nativePosts = await withRetries(
+    async () => {
+      return callNativeReddit(query, subreddits);
+    },
+    {
+      source: "reddit",
+      operation: "Reddit search (native fallback)",
+      retries: 3,
+      baseDelayMs: 250,
+      maxDelayMs: 1_500
+    }
+  );
+
+  return mapNativePostsToSignalPosts(nativePosts, query);
+}
+
 /**
  * Searches Reddit discussions through SerpAPI and extracts pain points and competitor mentions.
  */
@@ -294,13 +533,6 @@ export async function searchReddit(query: string, subreddits: string[] = []): Pr
   }
 
   const apiKey = process.env.SERPAPI_KEY ?? process.env.SERPAPI_API_KEY;
-  if (!apiKey) {
-    throw new SourceApiError("reddit", "CONFIG_ERROR", "Missing SERPAPI_KEY environment variable", {
-      details: {
-        acceptedEnv: ["SERPAPI_KEY", "SERPAPI_API_KEY"]
-      }
-    });
-  }
 
   const normalizedSubreddits = subreddits.map(normalizeSubreddit).filter((value) => value.length > 0);
 
@@ -317,64 +549,25 @@ export async function searchReddit(query: string, subreddits: string[] = []): Pr
     });
 
     try {
-      const searchQuery = buildSerpQuery(normalizedQuery, normalizedSubreddits);
+      let posts: Post[] = [];
 
-      const organicResults = await withRetries(
-        async () => {
-          return callSerpApi(searchQuery, apiKey);
-        },
-        {
-          source: "reddit",
-          operation: "Reddit search",
-          retries: 3,
-          baseDelayMs: 350,
-          maxDelayMs: 2_000
-        }
-      );
+      if (apiKey) {
+        try {
+          posts = await fetchPostsFromSerpApi(normalizedQuery, normalizedSubreddits, apiKey);
+        } catch (error) {
+          const normalizedError = normalizeSourceError("reddit", error, "Failed to fetch Reddit signals");
 
-      const posts: Post[] = organicResults
-        .map((result, index) => {
-          const relevanceScore = computeRelevanceScore(normalizedQuery, result.title, result.snippet, result.position);
-
-          return {
-            id: `reddit-${index + 1}-${result.position}`,
-            title: result.title,
-            url: result.link,
-            subreddit: extractSubredditFromUrl(result.link),
-            quote: extractQuote(result.snippet, result.title),
-            upvotes: extractUpvotes(result.snippet),
-            relevanceScore,
-            createdAt: undefined
-          };
-        })
-        .filter((post) => post.relevanceScore >= REDDIT_MIN_RELEVANCE)
-        .sort((left, right) => {
-          if (right.relevanceScore !== left.relevanceScore) {
-            return right.relevanceScore - left.relevanceScore;
+          if (!shouldFallbackToNative(normalizedError)) {
+            throw normalizedError;
           }
 
-          return right.upvotes - left.upvotes;
-        });
+          posts = await fetchPostsFromNativeReddit(normalizedQuery, normalizedSubreddits);
+        }
+      } else {
+        posts = await fetchPostsFromNativeReddit(normalizedQuery, normalizedSubreddits);
+      }
 
-      const painPoints = dedupeStrings(
-        posts
-          .map((post) => post.quote)
-          .filter((quote) => includesPainKeyword(quote))
-          .slice(0, 20)
-      );
-
-      const competitors = dedupeStrings(
-        posts
-          .flatMap((post) => extractCompetitorMentions(`${post.title} ${post.quote}`))
-          .filter((name) => name.length > 1)
-          .slice(0, 20)
-      );
-
-      return {
-        posts,
-        painPoints,
-        competitors
-      };
+      return buildResultFromPosts(posts);
     } catch (error) {
       throw normalizeSourceError("reddit", error, "Failed to fetch Reddit signals");
     }

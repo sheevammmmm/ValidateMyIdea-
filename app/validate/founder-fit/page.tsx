@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, CircleAlert, Lightbulb, Loader2 } from "lucide-react";
 import { saveFounderProfileAction } from "@/app/actions/saveFounderProfile";
@@ -151,7 +151,7 @@ function saveMessageFor(status: SaveStatus, message: string): string {
   return "Progress auto-saves every 2 seconds.";
 }
 
-export default function FounderFitPage() {
+function FounderFitPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const validationId = searchParams.get("validationId") ?? undefined;
@@ -334,5 +334,25 @@ export default function FounderFitPage() {
         </AnimatePresence>
       </div>
     </main>
+  );
+}
+
+function FounderFitPageFallback() {
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-indigo-50/70 via-white to-emerald-50/60 py-8 md:py-12">
+      <div className="container max-w-4xl">
+        <div className="rounded-2xl border border-indigo-100 bg-white/90 px-5 py-8 text-center text-sm text-slate-600 shadow-sm">
+          Loading founder-fit quiz...
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function FounderFitPage() {
+  return (
+    <Suspense fallback={<FounderFitPageFallback />}>
+      <FounderFitPageContent />
+    </Suspense>
   );
 }

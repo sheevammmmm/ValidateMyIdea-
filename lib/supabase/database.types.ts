@@ -126,47 +126,53 @@ export type Database = {
       validations: {
         Row: {
           created_at: string;
+          email: string | null;
           founder_fit_score: number | null;
           id: string;
           idea_text: string;
           industry: string | null;
           report_url: string | null;
+          result_json: Json | null;
           signal_score: number | null;
-          stage: "pre-idea" | "mvp" | "launched";
-          status: "processing" | "completed" | "failed";
+          stage: "pre-idea" | "mvp" | "launched" | null;
+          status: "pending" | "processing" | "done" | "completed" | "failed";
           target_customer: string | null;
-          updated_at: string;
-          user_id: string;
+          updated_at: string | null;
+          user_id: string | null;
           verdict: "BUILD" | "PIVOT" | "PASS" | null;
         };
         Insert: {
           created_at?: string;
+          email?: string | null;
           founder_fit_score?: number | null;
           id?: string;
           idea_text: string;
           industry?: string | null;
           report_url?: string | null;
+          result_json?: Json | null;
           signal_score?: number | null;
-          stage?: "pre-idea" | "mvp" | "launched";
-          status?: "processing" | "completed" | "failed";
+          stage?: "pre-idea" | "mvp" | "launched" | null;
+          status?: "pending" | "processing" | "done" | "completed" | "failed";
           target_customer?: string | null;
           updated_at?: string;
-          user_id: string;
+          user_id?: string | null;
           verdict?: "BUILD" | "PIVOT" | "PASS" | null;
         };
         Update: {
           created_at?: string;
+          email?: string | null;
           founder_fit_score?: number | null;
           id?: string;
           idea_text?: string;
           industry?: string | null;
           report_url?: string | null;
+          result_json?: Json | null;
           signal_score?: number | null;
-          stage?: "pre-idea" | "mvp" | "launched";
-          status?: "processing" | "completed" | "failed";
+          stage?: "pre-idea" | "mvp" | "launched" | null;
+          status?: "pending" | "processing" | "done" | "completed" | "failed";
           target_customer?: string | null;
           updated_at?: string;
-          user_id?: string;
+          user_id?: string | null;
           verdict?: "BUILD" | "PIVOT" | "PASS" | null;
         };
         Relationships: [
